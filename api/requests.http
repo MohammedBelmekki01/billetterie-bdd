@@ -1,0 +1,86 @@
+### Requêtes de démonstration de l'API
+### À exécuter dans VS Code avec l'extension "REST Client" (humao.rest-client) :
+### cliquer sur "Send Request" au-dessus de chaque requête.
+
+@api = http://localhost:3000/api
+
+### Santé : connexion aux 3 bases
+GET {{api}}/health
+
+### Connexion client (mot de passe des comptes de démo : demo1234)
+# @name login
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{ "email": "client@example.com", "password": "demo1234" }
+
+###
+@token = {{login.response.body.token}}
+
+### Connexion admin
+# @name adminLogin
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{ "email": "admin@example.com", "password": "demo1234" }
+
+###
+@admin = {{adminLogin.response.body.token}}
+
+### Catalogue (vue PostgreSQL v_upcoming_events)
+GET {{api}}/events?category=concert&sort=price&limit=5
+
+### Tendances (classement Redis + PostgreSQL)
+GET {{api}}/events/trending?limit=5
+
+### Recherche plein texte (MongoDB + PostgreSQL)
+GET {{api}}/events/search?q=festival jazz
+
+### Fiche événement : PostgreSQL + MongoDB + cache Redis (voir l'en-tête X-Cache)
+GET {{api}}/events/210
+
+### Panier Redis (TTL 15 min)
+PUT {{api}}/cart/items
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "ticket_type_id": 628, "quantity": 2 }
+
+###
+GET {{api}}/cart
+Authorization: Bearer {{token}}
+
+### Paiement du panier (fonction SQL place_order)
+# @name order
+POST {{api}}/orders
+Authorization: Bearer {{token}}
+
+### Mes commandes
+GET {{api}}/orders
+Authorization: Bearer {{token}}
+
+### Annulation (déclencheur : les places sont remises en vente)
+POST {{api}}/orders/{{order.response.body.id}}/cancel
+Authorization: Bearer {{token}}
+
+### Avis d'un événement passé (MongoDB)
+GET {{api}}/events/90/reviews?sort=helpful&limit=3
+
+### Erreur : pas de billet pour cet événement -> 403
+POST {{api}}/events/90/reviews
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "rating": 5, "comment": "Super soirée !" }
+
+### Statistiques admin
+GET {{api}}/stats/categories
+Authorization: Bearer {{admin}}
+
+###
+GET {{api}}/stats/reviews
+Authorization: Bearer {{admin}}
+
+###
+GET {{api}}/stats/revenue-vs-rating
+Authorization: Bearer {{admin}}

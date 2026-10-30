@@ -127,7 +127,37 @@ services:
       mongo:
         condition: service_healthy
 
-  # Les services "api" et "front" seront ajoutés aux étapes 4 et 5.
+  # --- API REST (Node.js / Express), connectée aux trois bases
+  api:
+    build: ./api
+    container_name: billetterie-api
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      JWT_SECRET: ${JWT_SECRET:-dev_only_change_me}
+      PGHOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-billetterie}
+      APP_DB_USER: ${APP_DB_USER:-billetterie_app}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-app_dev_only}
+      MONGO_HOST: mongo
+      MONGO_DB: ${MONGO_DB:-billetterie}
+      APP_MONGO_USER: ${APP_MONGO_USER:-billetterie_app}
+      APP_MONGO_PASSWORD: ${APP_MONGO_PASSWORD:-app_dev_only}
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_only}
+    ports:
+      - "${API_PORT:-3000}:3000"
+    depends_on:
+      # l'API démarre une fois les bases peuplées
+      seed:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Le service "front" sera ajouté à l'étape 5.
 
 volumes:
   pg_data:
