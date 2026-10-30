@@ -47,7 +47,8 @@ Comptes de démonstration de l'application (mot de passe `demo1234`) :
 ```
 /                      README.md, docker-compose.yml, .env.example
 /docker/init-sql       scripts de création + peuplement PostgreSQL
-/docker/init-nosql     scripts de création + peuplement MongoDB et Redis
+/docker/init-nosql/mongo  création des collections, validateurs, index, rôle MongoDB
+/docker/init-nosql/seed   service de peuplement MongoDB + Redis (lit PostgreSQL)
 /api                   code source de l'API (Node.js / Express)
 /front                 code source du frontend (React)
 /docs                  presentation.md + schémas

@@ -26,7 +26,9 @@ services:
       # Scripts exécutés une seule fois, au premier démarrage (volume vide)
       - ./docker/init-sql:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      # -h 127.0.0.1 : pendant les scripts d'init, Postgres n'écoute pas en TCP,
+      # donc le conteneur n'est "healthy" qu'une fois le peuplement terminé
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -70,6 +72,27 @@ services:
       retries: 20
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_only}
+
+  # --- Peuplement MongoDB + Redis à partir de PostgreSQL (s'exécute une fois puis s'arrête)
+  seed:
+    build: ./docker/init-nosql/seed
+    container_name: billetterie-seed
+    restart: "no"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-billetterie}
+      APP_DB_USER: ${APP_DB_USER:-billetterie_app}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-app_dev_only}
+      MONGO_DB: ${MONGO_DB:-billetterie}
+      APP_MONGO_USER: ${APP_MONGO_USER:-billetterie_app}
+      APP_MONGO_PASSWORD: ${APP_MONGO_PASSWORD:-app_dev_only}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_only}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   # --- Outils d'administration (navigateur) pour inspecter les bases
   pgadmin:

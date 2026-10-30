@@ -1,0 +1,19 @@
+{
+  "name": "billetterie-seed",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Peuplement de MongoDB et Redis à partir des données PostgreSQL",
+  "type": "module",
+  "main": "seed.js",
+  "scripts": {
+    "start": "node seed.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "mongodb": "^7.7.0",
+    "pg": "^8.23.1",
+    "redis": "^6.3.1"
+  }
+}
