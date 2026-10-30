@@ -1,0 +1,13 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Billetterie (PostgreSQL)",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "billetterie",
+      "Username": "postgres",
+      "SSLMode": "prefer"
+    }
+  }
+}

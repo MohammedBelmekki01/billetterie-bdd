@@ -1,0 +1,22 @@
+# Secrets locaux
+.env
+.env.local
+
+# Dépendances et builds
+node_modules/
+dist/
+build/
+coverage/
+
+# Logs et fichiers système
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Éditeurs
+.vscode/
+.idea/
+
+# Sauvegardes de bases (générées localement)
+backups/

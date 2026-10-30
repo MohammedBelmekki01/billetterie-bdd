@@ -1,0 +1,6 @@
+# Fins de ligne LF partout : les scripts .sh exécutés dans les conteneurs Linux
+# échouent s'ils sont extraits en CRLF sous Windows.
+* text=auto eol=lf
+*.mp4 binary
+*.png binary
+*.jpg binary

@@ -1,0 +1,112 @@
+# Pile complète du projet Billetterie.
+# Lancement : docker compose up -d --build
+# Les valeurs par défaut (${VAR:-défaut}) permettent de démarrer sans fichier .env
+# sur une machine vierge ; copier .env.example en .env pour les surcharger.
+
+name: billetterie
+
+services:
+  # --- Base relationnelle : utilisateurs, événements, salles, commandes, billets
+  postgres:
+    image: postgres:18-alpine
+    container_name: billetterie-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-billetterie}
+      POSTGRES_USER: ${POSTGRES_ADMIN_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:-postgres_dev_only}
+      # Lus par le script d'init pour créer le rôle applicatif aux droits limités
+      APP_DB_USER: ${APP_DB_USER:-billetterie_app}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-app_dev_only}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # Postgres 18 stocke ses données sous /var/lib/postgresql/<version>
+      - pg_data:/var/lib/postgresql
+      # Scripts exécutés une seule fois, au premier démarrage (volume vide)
+      - ./docker/init-sql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # --- Base document : pages d'événements (contenu variable) et avis
+  mongo:
+    image: mongo:8
+    container_name: billetterie-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-root}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-mongo_dev_only}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-billetterie}
+      APP_MONGO_USER: ${APP_MONGO_USER:-billetterie_app}
+      APP_MONGO_PASSWORD: ${APP_MONGO_PASSWORD:-app_dev_only}
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    volumes:
+      - mongo_data:/data/db
+      - ./docker/init-nosql/mongo:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # --- Base clé-valeur (bonus) : réservations temporaires de places (TTL), classement
+  redis:
+    image: redis:8-alpine
+    container_name: billetterie-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-redis_dev_only}"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" --no-auth-warning ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_only}
+
+  # --- Outils d'administration (navigateur) pour inspecter les bases
+  pgadmin:
+    image: dpage/pgadmin4:9
+    container_name: billetterie-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-pgadmin_dev_only}
+      # Mode "bureau" : pas d'écran de connexion à pgAdmin (usage local uniquement)
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      # Serveur PostgreSQL pré-enregistré dans pgAdmin
+      - ./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  mongo-express:
+    image: mongo-express:1
+    container_name: billetterie-mongo-express
+    restart: unless-stopped
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_ROOT_USER:-root}:${MONGO_ROOT_PASSWORD:-mongo_dev_only}@mongo:27017/?authSource=admin
+      ME_CONFIG_BASICAUTH: "false"
+    ports:
+      - "${MONGO_EXPRESS_PORT:-8081}:8081"
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  # Les services "api" et "front" seront ajoutés aux étapes 4 et 5.
+
+volumes:
+  pg_data:
+  mongo_data:
+  redis_data:
