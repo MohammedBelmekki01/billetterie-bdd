@@ -25,6 +25,8 @@ services:
       - pg_data:/var/lib/postgresql
       # Scripts exécutés une seule fois, au premier démarrage (volume vide)
       - ./docker/init-sql:/docker-entrypoint-initdb.d:ro
+      # Requêtes de démonstration, exécutables avec psql -f /docs/sql/...
+      - ./docs:/docs:ro
     healthcheck:
       # -h 127.0.0.1 : pendant les scripts d'init, Postgres n'écoute pas en TCP,
       # donc le conteneur n'est "healthy" qu'une fois le peuplement terminé
@@ -49,6 +51,8 @@ services:
     volumes:
       - mongo_data:/data/db
       - ./docker/init-nosql/mongo:/docker-entrypoint-initdb.d:ro
+      # Requêtes de démonstration, exécutables avec mongosh --file /docs/nosql/...
+      - ./docs:/docs:ro
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 5s
