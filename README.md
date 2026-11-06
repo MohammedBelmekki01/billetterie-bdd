@@ -31,6 +31,14 @@ docker compose up -d --build
 Aucune configuration n'est nécessaire : des valeurs de développement sont fournies par défaut.
 Pour les personnaliser, copier `.env.example` en `.env`.
 
+La pile démarre et se peuple en une vingtaine de secondes (le premier lancement télécharge
+les images Docker). Ensuite :
+
+| Service | URL |
+|---|---|
+| **Application web** | **http://localhost:5173** |
+| API REST | http://localhost:3000/api |
+
 ## Accès aux bases
 
 | Outil | URL / commande | Identifiants |
@@ -80,7 +88,7 @@ Codes d'erreur : `400` données invalides · `401` non connecté · `403` interd
 /docker/init-nosql/mongo  création des collections, validateurs, index, rôle MongoDB
 /docker/init-nosql/seed   service de peuplement MongoDB + Redis (lit PostgreSQL)
 /api                   code source de l'API (Node.js / Express)
-/front                 code source du frontend (React)
+/front                 frontend React + Vite, servi par nginx (qui relaie /api)
 /docs                  presentation.md + schémas
 /docs/video            vidéo de présentation
 ```
