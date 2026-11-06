@@ -2,7 +2,7 @@
 -- explain_index.sql — Mesure de l'effet d'un index (EXPLAIN ANALYZE avant / après)
 --
 -- Lancement :
---   docker exec -i billetterie-postgres psql -U postgres -d billetterie < docs/sql/explain_index.sql
+--   docker exec -it billetterie-postgres psql -U postgres -d billetterie -f /docs/sql/explain_index.sql
 --
 -- Requête mesurée : l'historique des commandes d'un client ("Mes commandes"),
 -- appelée à chaque visite de la page compte.
