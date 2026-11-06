@@ -50,6 +50,18 @@ les images Docker). Ensuite :
 Comptes de démonstration de l'application (mot de passe `demo1234`) :
 `admin@example.com` (administrateur) et `client@example.com` (client).
 
+## Requêtes de démonstration
+
+Les requêtes avancées sont rassemblées, commentées (intention + explication), dans `docs/`.
+Elles ne modifient pas les données.
+
+| Fichier | Contenu | Lancement |
+|---|---|---|
+| [docs/sql/advanced_queries.sql](docs/sql/advanced_queries.sql) | CTE, GROUP BY / HAVING, FILTER, RANK, LAG, sous-requête corrélée, NOT EXISTS, LEFT JOIN, transaction | `docker exec -it billetterie-postgres psql -U postgres -d billetterie -f /docs/sql/advanced_queries.sql` |
+| [docs/sql/explain_index.sql](docs/sql/explain_index.sql) | `EXPLAIN ANALYZE` avant / après index | `docker exec -it billetterie-postgres psql -U postgres -d billetterie -f /docs/sql/explain_index.sql` |
+| [docs/nosql/mongo_queries.js](docs/nosql/mongo_queries.js) | schéma variable, recherche texte, index sur tableau, `$facet` / `$lookup`, `$unwind`, validateur | `docker exec -it billetterie-mongo mongosh -u root -p mongo_dev_only --authenticationDatabase admin billetterie --quiet --file /docs/nosql/mongo_queries.js` |
+| [docs/nosql/redis_commands.md](docs/nosql/redis_commands.md) | ZSET, cache avec TTL, HASH panier, SET de votes, persistance | `docker exec -it billetterie-redis redis-cli -a redis_dev_only --no-auth-warning` |
+
 ## API
 
 URL de base : **http://localhost:3000/api** — exemples prêts à l'emploi dans [api/requests.http](api/requests.http).
@@ -90,6 +102,7 @@ Codes d'erreur : `400` données invalides · `401` non connecté · `403` interd
 /api                   code source de l'API (Node.js / Express)
 /front                 frontend React + Vite, servi par nginx (qui relaie /api)
 /docs                  presentation.md + schémas
+/docs/sql, /docs/nosql requêtes de démonstration commentées (montées dans les conteneurs sous /docs)
 /docs/video            vidéo de présentation
 ```
 
