@@ -157,7 +157,16 @@ services:
       timeout: 5s
       retries: 10
 
-  # Le service "front" sera ajouté à l'étape 5.
+  # --- Frontend React, servi par nginx qui relaie aussi /api vers l'API
+  front:
+    build: ./front
+    container_name: billetterie-front
+    restart: unless-stopped
+    ports:
+      - "${FRONT_PORT:-5173}:80"
+    depends_on:
+      api:
+        condition: service_healthy
 
 volumes:
   pg_data:
