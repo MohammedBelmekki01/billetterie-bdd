@@ -1,10 +1,3 @@
-// =============================================================================
-// content.js — Génération du contenu éditorial (pages d'événements et avis)
-// Tout est fictif. Le générateur aléatoire est "seedé" pour que deux
-// peuplements successifs produisent exactement les mêmes documents.
-// =============================================================================
-
-// Générateur pseudo-aléatoire déterministe (mulberry32)
 export function createRandom(seed) {
   let a = seed >>> 0;
   const rnd = () => {
@@ -56,12 +49,6 @@ const OUTROS = [
   'Une expérience à partager entre amis ou en famille.',
   'Bar et restauration légère sur place.',
 ];
-
-// -----------------------------------------------------------------------------
-// Partie spécifique à chaque catégorie : c'est ici que le schéma varie
-// -----------------------------------------------------------------------------
-// L'artiste principal est repris du titre PostgreSQL pour rester cohérent
-// ("Nova Lune en concert #12" -> "Nova Lune")
 const artistFromTitle = (title) =>
   title.replace(/^(Stand-up : |Ballet )/, '').replace(/ en concert/, '').replace(/ #\d+$/, '');
 
@@ -138,14 +125,10 @@ export function buildEventPage(ev, rnd) {
       { q: 'Les billets sont-ils remboursables ?', a: 'Uniquement en cas d\'annulation de l\'événement.' },
       { q: 'Puis-je revendre mon billet ?', a: 'Oui, via votre espace client, jusqu\'à 48 h avant.' },
     ],
-    rating: { average: 0, count: 0 }, // recalculé par agrégation après l'insertion des avis
+    rating: { average: 0, count: 0 },
     updated_at: new Date(),
   };
 }
-
-// -----------------------------------------------------------------------------
-// Avis
-// -----------------------------------------------------------------------------
 const COMMENTS = {
   1: ['Très déçu, le son était mauvais et l\'attente interminable.', 'Organisation catastrophique, je ne reviendrai pas.'],
   2: ['Bof. Quelques bons moments mais beaucoup trop cher pour ce que c\'est.', 'Placement mal indiqué et visibilité médiocre.'],
@@ -156,8 +139,6 @@ const COMMENTS = {
 const TITLES = { 1: 'À éviter', 2: 'Décevant', 3: 'Moyen', 4: 'Très bien', 5: 'Exceptionnel' };
 
 const clamp = (n) => Math.max(1, Math.min(5, n));
-
-// quality : note "réelle" de l'événement (2.5 à 4.8), chaque avis varie autour
 export function buildReview(att, quality, rnd) {
   const rating = clamp(Math.round(quality + (rnd() - 0.5) * 2.2));
   const end = new Date(att.ends_at).getTime();

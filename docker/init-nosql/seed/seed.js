@@ -1,29 +1,13 @@
-// =============================================================================
-// seed.js — Peuplement de MongoDB et Redis à partir de PostgreSQL
-//
-// PostgreSQL est la source de vérité pour les événements et les achats.
-// Ce script lit ces données puis :
-//   1. crée une page éditoriale MongoDB par événement (event_pages) ;
-//   2. génère des avis (reviews) uniquement pour des spectateurs qui ont
-//      réellement assisté à l'événement (billet scanné) : la cohérence
-//      inter-bases est garantie dès le peuplement ;
-//   3. calcule la note moyenne de chaque page via un pipeline d'agrégation ;
-//   4. construit le classement Redis des événements les plus vendus.
-// Idempotent : si MongoDB contient déjà des pages, l'étape 1-3 est sautée.
-// =============================================================================
-
 import pg from 'pg';
 import { MongoClient } from 'mongodb';
 import { createClient } from 'redis';
 import { createRandom, buildEventPage, buildReview } from './content.js';
 
 const env = process.env;
-const REVIEW_RATE = 0.45; // part des spectateurs qui laissent un avis
+const REVIEW_RATE = 0.45;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Les bases peuvent être "healthy" avant la fin de leurs scripts d'init :
-// on réessaie la connexion plutôt que d'échouer au premier essai.
 async function retry(label, fn, attempts = 30) {
   for (let i = 1; ; i++) {
     try {
@@ -37,7 +21,6 @@ async function retry(label, fn, attempts = 30) {
 }
 
 async function main() {
-  // --- Connexions (avec les comptes applicatifs, pas les super-utilisateurs)
   const pgPool = new pg.Pool({
     host: env.PGHOST || 'postgres',
     database: env.POSTGRES_DB || 'billetterie',
@@ -61,9 +44,6 @@ async function main() {
   });
   await retry('Redis', () => redis.connect());
 
-  // ---------------------------------------------------------------------------
-  // 1-3. MongoDB
-  // ---------------------------------------------------------------------------
   const existing = await db.collection('event_pages').estimatedDocumentCount();
   if (existing > 0) {
     console.log(`[seed] MongoDB déjà peuplé (${existing} pages), étape ignorée.`);
@@ -80,7 +60,7 @@ async function main() {
     await db.collection('event_pages').insertMany(pages);
     console.log(`[seed] event_pages : ${pages.length} documents`);
 
-    // Spectateurs réels : au moins un billet scanné pour un événement terminé
+
     const { rows: attendees } = await pgPool.query(`
       SELECT DISTINCT e.id AS event_id, e.ends_at, u.id AS user_id, u.first_name, u.last_name
         FROM tickets t
@@ -92,7 +72,7 @@ async function main() {
        WHERE t.status = 'used' AND e.status = 'completed'
        ORDER BY e.id, u.id`);
 
-    const quality = new Map(); // note "réelle" par événement
+    const quality = new Map();
     const reviews = [];
     for (const att of attendees) {
       if (rnd() > REVIEW_RATE) continue;
@@ -104,8 +84,6 @@ async function main() {
     }
     console.log(`[seed] reviews : ${reviews.length} documents (sur ${attendees.length} spectateurs)`);
 
-    // Note moyenne dénormalisée dans chaque page : pipeline d'agrégation
-    // qui écrit directement son résultat dans event_pages ($merge).
     await db.collection('reviews').aggregate([
       { $group: { _id: '$event_id', average: { $avg: '$rating' }, count: { $sum: 1 } } },
       { $project: { _id: 0, event_id: '$_id', rating: { average: { $round: ['$average', 2] }, count: '$count' } } },
@@ -114,11 +92,6 @@ async function main() {
     console.log('[seed] notes moyennes calculées ($merge vers event_pages)');
   }
 
-  // ---------------------------------------------------------------------------
-  // 4. Redis : classement des événements à venir les plus vendus (30 derniers jours)
-  // Ensemble trié (ZSET) : membre = id d'événement, score = billets vendus.
-  // Reconstruit à chaque démarrage ; l'API l'incrémente ensuite à chaque achat.
-  // ---------------------------------------------------------------------------
   const { rows: sales } = await pgPool.query(`
     SELECT tt.event_id, sum(oi.quantity)::int AS sold
       FROM order_items oi

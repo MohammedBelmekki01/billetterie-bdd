@@ -1,15 +1,8 @@
--- =============================================================================
--- 03_views.sql — Vues utilisées par l'API
--- =============================================================================
+
 
 BEGIN;
 
--- -----------------------------------------------------------------------------
--- v_event_sales : bilan des ventes par événement (tableau de bord admin).
--- LEFT JOIN (jointures externes) : un événement sans aucune vente apparaît
--- quand même, avec 0 billet vendu et 0 € de chiffre d'affaires.
--- FILTER : agrégat conditionnel, on ne compte que les commandes payées.
--- -----------------------------------------------------------------------------
+
 CREATE VIEW v_event_sales AS
 WITH capacity AS (
     SELECT event_id,
@@ -49,10 +42,6 @@ SELECT e.id                                   AS event_id,
 
 COMMENT ON VIEW v_event_sales IS 'Ventes, remplissage et chiffre d''affaires par événement';
 
--- -----------------------------------------------------------------------------
--- v_upcoming_events : catalogue public (page d'accueil du frontend).
--- Événements publiés à venir, avec prix minimum et places restantes.
--- -----------------------------------------------------------------------------
 CREATE VIEW v_upcoming_events AS
 SELECT e.id                                         AS event_id,
        e.title,

@@ -11,13 +11,11 @@ export function parseId(value, what = 'Identifiant') {
   return r.data;
 }
 
-// Identifiant MongoDB (/reviews/:id)
 export function parseObjectId(value) {
   if (!ObjectId.isValid(value)) throw new HttpError(400, 'Identifiant d\'avis invalide');
   return new ObjectId(value);
 }
 
-// Pagination commune : ?page=1&limit=20
 export const pagination = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),

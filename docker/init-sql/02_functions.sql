@@ -1,19 +1,7 @@
--- =============================================================================
--- 02_functions.sql — Logique serveur : déclencheurs et fonctions
---
--- La règle métier la plus importante (ne jamais survendre) est appliquée DANS la
--- base, pas seulement dans l'API : même un INSERT manuel ne peut pas la violer.
--- =============================================================================
+
 
 BEGIN;
 
--- -----------------------------------------------------------------------------
--- Déclencheur 1 : réserver / libérer le stock quand une ligne de commande
--- est ajoutée ou supprimée.
--- L'UPDATE ... WHERE quantity_sold + n <= quantity_total est atomique : il pose
--- un verrou sur la ligne ticket_types, donc deux achats simultanés de la
--- dernière place ne peuvent pas réussir tous les deux.
--- -----------------------------------------------------------------------------
 CREATE FUNCTION trg_order_items_stock() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -40,10 +28,6 @@ CREATE TRIGGER order_items_stock
     AFTER INSERT OR DELETE ON order_items
     FOR EACH ROW EXECUTE FUNCTION trg_order_items_stock();
 
--- -----------------------------------------------------------------------------
--- Déclencheur 2 : quand une commande passe à "cancelled" ou "refunded",
--- on remet les places en vente et on annule les billets associés.
--- -----------------------------------------------------------------------------
 CREATE FUNCTION trg_orders_cancel() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -70,14 +54,6 @@ CREATE TRIGGER orders_cancel
     AFTER UPDATE OF status ON orders
     FOR EACH ROW EXECUTE FUNCTION trg_orders_cancel();
 
--- -----------------------------------------------------------------------------
--- Fonction place_order : passe une commande complète en une seule transaction.
---   p_user_id : client
---   p_items   : '[{"ticket_type_id": 12, "quantity": 2}, ...]'
--- Retourne l'id de la commande créée (statut "paid", billets générés).
--- En cas d'erreur (stock, événement passé...), RIEN n'est enregistré :
--- l'exception annule toute la transaction.
--- -----------------------------------------------------------------------------
 CREATE FUNCTION place_order(p_user_id BIGINT, p_items JSONB) RETURNS BIGINT
 LANGUAGE plpgsql AS $$
 DECLARE
@@ -120,7 +96,6 @@ BEGIN
                 USING ERRCODE = 'invalid_parameter_value';
         END IF;
 
-        -- le déclencheur order_items_stock vérifie et réserve le stock ici
         INSERT INTO order_items (order_id, ticket_type_id, quantity, unit_price)
         VALUES (v_order_id, v_tt.id, v_qty, v_tt.price)
         RETURNING id INTO v_oi_id;
@@ -129,7 +104,7 @@ BEGIN
         SELECT v_oi_id, v_holder FROM generate_series(1, v_qty);
     END LOOP;
 
-    -- paiement simulé : la commande est immédiatement payée
+   
     UPDATE orders
        SET status = 'paid',
            paid_at = now(),

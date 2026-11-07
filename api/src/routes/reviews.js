@@ -7,7 +7,7 @@ import { HttpError, notFound } from '../lib/errors.js';
 import { parseId, parseObjectId, pagination } from '../lib/validate.js';
 import { requireAuth } from '../lib/auth.js';
 
-// Monté sur /api : gère /api/events/:id/reviews et /api/reviews/:id
+
 const router = Router();
 
 const SORTS = {
@@ -16,9 +16,6 @@ const SORTS = {
   rating: { rating: -1, created_at: -1 },
 };
 
-// -----------------------------------------------------------------------------
-// GET /api/events/:id/reviews?sort=recent|helpful|rating&min_rating=4&page=1
-// -----------------------------------------------------------------------------
 router.get('/events/:id/reviews', async (req, res) => {
   const eventId = parseId(req.params.id, 'Identifiant d\'événement');
   const f = pagination.extend({
@@ -34,11 +31,6 @@ router.get('/events/:id/reviews', async (req, res) => {
   res.json({ page: f.page, limit: f.limit, total, items });
 });
 
-// -----------------------------------------------------------------------------
-// POST /api/events/:id/reviews — CROISE LES DEUX BASES
-// PostgreSQL vérifie que l'utilisateur a bien assisté à l'événement (billet non
-// annulé, événement terminé) ; l'avis est ensuite écrit dans MongoDB.
-// -----------------------------------------------------------------------------
 const aspect = z.number().int().min(1).max(5);
 const reviewSchema = z.object({
   rating: z.number().int().min(1).max(5),
@@ -73,7 +65,6 @@ router.post('/events/:id/reviews', requireAuth, async (req, res) => {
   }
   if (!check.attended) throw new HttpError(403, 'Seuls les spectateurs ayant un billet peuvent laisser un avis');
 
-  // l'index unique (event_id, user_id) refuse un 2e avis -> 409
   const doc = {
     event_id: eventId,
     user_id: req.user.id,
@@ -99,7 +90,7 @@ async function ownReview(req) {
   return review;
 }
 
-// PATCH /api/reviews/:id — modifier son avis
+
 router.patch('/reviews/:id', requireAuth, async (req, res) => {
   const review = await ownReview(req);
   const data = reviewSchema.partial().refine((d) => Object.keys(d).length > 0, 'Aucun champ à modifier').parse(req.body);
@@ -114,7 +105,6 @@ router.patch('/reviews/:id', requireAuth, async (req, res) => {
   res.json(updated);
 });
 
-// DELETE /api/reviews/:id — auteur ou admin (modération)
 router.delete('/reviews/:id', requireAuth, async (req, res) => {
   const review = await ownReview(req);
   await reviews.deleteOne({ _id: review._id });
@@ -126,10 +116,6 @@ router.delete('/reviews/:id', requireAuth, async (req, res) => {
   res.status(204).end();
 });
 
-// -----------------------------------------------------------------------------
-// POST /api/reviews/:id/helpful — vote "avis utile", une seule fois par personne
-// Le SET Redis mémorise qui a voté : SADD renvoie 0 si l'utilisateur y est déjà.
-// -----------------------------------------------------------------------------
 router.post('/reviews/:id/helpful', requireAuth, async (req, res) => {
   const id = parseObjectId(req.params.id);
   const exists = await reviews.countDocuments({ _id: id }, { limit: 1 });
@@ -144,7 +130,6 @@ router.post('/reviews/:id/helpful', requireAuth, async (req, res) => {
   res.json(review);
 });
 
-// GET /api/me/reviews — mes avis
 router.get('/me/reviews', requireAuth, async (req, res) => {
   const items = await reviews.find({ user_id: req.user.id }).sort({ created_at: -1 }).toArray();
   res.json(items);

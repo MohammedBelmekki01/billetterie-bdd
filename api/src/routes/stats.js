@@ -7,7 +7,7 @@ import { requireAdmin } from '../lib/auth.js';
 const router = Router();
 router.use(requireAdmin);
 
-// GET /api/stats/sales — meilleures ventes, via la vue v_event_sales
+//meilleures ventes, via la vue v_event_sales
 router.get('/sales', async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 10, 100);
   const { rows } = await query(
@@ -16,7 +16,7 @@ router.get('/sales', async (req, res) => {
   res.json(rows);
 });
 
-// GET /api/stats/categories — CTE + GROUP BY + HAVING + FILTER
+// CTE + GROUP BY + HAVING + FILTER
 // Performances par catégorie, en ne gardant que les catégories significatives
 router.get('/categories', async (req, res) => {
   const { rows } = await query(`
@@ -72,8 +72,6 @@ router.get('/top-customers', async (req, res) => {
   res.json(rows);
 });
 
-// GET /api/stats/inactive-users — NOT EXISTS : comptes sans aucun achat payé
-// (cible d'une campagne de relance)
 router.get('/inactive-users', async (req, res) => {
   const { rows } = await query(`
     SELECT count(*) OVER () AS total, u.id, u.email, u.created_at
@@ -84,8 +82,6 @@ router.get('/inactive-users', async (req, res) => {
      LIMIT 20`);
   res.json({ total: rows[0]?.total ?? 0, sample: rows.map(({ total: _, ...r }) => r) });
 });
-
-// GET /api/stats/monthly — chiffre d'affaires mensuel et évolution (LAG)
 router.get('/monthly', async (req, res) => {
   const { rows } = await query(`
     WITH monthly AS (
@@ -102,20 +98,15 @@ router.get('/monthly', async (req, res) => {
      ORDER BY month`);
   res.json(rows);
 });
-
-// GET /api/stats/reviews — pipeline d'agrégation MongoDB avec $facet :
-// plusieurs analyses calculées en une seule passe sur la collection
 router.get('/reviews', async (req, res) => {
   const [result] = await reviews.aggregate([
     {
       $facet: {
-        // répartition des notes 1 à 5
         distribution: [
           { $group: { _id: '$rating', count: { $sum: 1 } } },
           { $sort: { _id: 1 } },
           { $project: { _id: 0, rating: '$_id', count: 1 } },
         ],
-        // note moyenne et détail par aspect, par catégorie (jointure $lookup)
         by_category: [
           { $lookup: { from: 'event_pages', localField: 'event_id', foreignField: 'event_id', as: 'page',
                        pipeline: [{ $project: { _id: 0, category: 1 } }] } },
@@ -146,10 +137,6 @@ router.get('/reviews', async (req, res) => {
   ]).toArray();
   res.json({ ...result, totals: result.totals[0] ?? { reviews: 0, average: null } });
 });
-
-// GET /api/stats/revenue-vs-rating — CROISE LES DEUX BASES
-// Le chiffre d'affaires vient de PostgreSQL, la satisfaction de MongoDB :
-// est-ce que les événements les mieux notés sont aussi ceux qui rapportent le plus ?
 router.get('/revenue-vs-rating', async (req, res) => {
   const ratings = await reviews.aggregate([
     { $group: { _id: '$event_id', average: { $avg: '$rating' }, count: { $sum: 1 } } },
@@ -163,7 +150,6 @@ router.get('/revenue-vs-rating', async (req, res) => {
   );
   const ratingById = new Map(ratings.map((r) => [r._id, r]));
 
-  // regroupement par tranche de note
   const buckets = {};
   for (const ev of rows) {
     const avg = ratingById.get(ev.event_id).average;

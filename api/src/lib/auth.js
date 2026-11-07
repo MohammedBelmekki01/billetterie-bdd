@@ -5,7 +5,6 @@ import { HttpError } from './errors.js';
 export const signToken = (user) =>
   jwt.sign({ sub: user.id, role: user.role }, config.jwtSecret, { expiresIn: config.jwtExpiresIn });
 
-// Exige un en-tête "Authorization: Bearer <jeton>" valide
 export function requireAuth(req, res, next) {
   const [scheme, token] = (req.headers.authorization || '').split(' ');
   if (scheme !== 'Bearer' || !token) throw new HttpError(401, 'Authentification requise');

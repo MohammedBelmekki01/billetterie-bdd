@@ -9,11 +9,6 @@ import { parseId, pagination } from '../lib/validate.js';
 import { requireAdmin } from '../lib/auth.js';
 
 const router = Router();
-
-// -----------------------------------------------------------------------------
-// GET /api/events — catalogue des événements à venir (vue v_upcoming_events)
-// Filtres : ?category=concert&city=Lyon&q=jazz&max_price=50&sort=date|price
-// -----------------------------------------------------------------------------
 const listSchema = pagination.extend({
   category: z.string().optional(),
   city: z.string().optional(),
@@ -49,9 +44,7 @@ router.get('/', async (req, res) => {
   });
 });
 
-// -----------------------------------------------------------------------------
-// GET /api/events/trending — classement Redis (ZSET) complété par PostgreSQL
-// -----------------------------------------------------------------------------
+
 router.get('/trending', async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 10, 50);
   // ZREVRANGE : les meilleurs scores d'abord, en O(log n + limit)
@@ -67,9 +60,7 @@ router.get('/trending', async (req, res) => {
     .map((r, i) => ({ rank: i + 1, tickets_sold_30d: r.score, ...byId.get(Number(r.value)) })));
 });
 
-// -----------------------------------------------------------------------------
-// GET /api/events/search?q=... — recherche plein texte MongoDB + prix PostgreSQL
-// -----------------------------------------------------------------------------
+
 router.get('/search', async (req, res) => {
   const { q, limit } = z.object({
     q: z.string().trim().min(2, 'Au moins 2 caractères'),
@@ -142,9 +133,7 @@ router.get('/:id', async (req, res) => {
   res.json({ ...event, views });
 });
 
-// -----------------------------------------------------------------------------
-// POST /api/events (admin) — création dans PostgreSQL ET MongoDB
-// -----------------------------------------------------------------------------
+
 const createSchema = z.object({
   title: z.string().trim().min(1).max(200),
   category_id: z.number().int().positive(),
@@ -167,8 +156,6 @@ const createSchema = z.object({
 router.post('/', requireAdmin, async (req, res) => {
   const data = createSchema.parse(req.body);
 
-  // La page MongoDB est insérée PENDANT la transaction PostgreSQL :
-  // si MongoDB échoue, l'exception provoque le ROLLBACK de PostgreSQL.
   const event = await transaction(async (client) => {
     const { rows: [ev] } = await client.query(
       `INSERT INTO events (title, category_id, venue_id, starts_at, ends_at, status)
@@ -196,11 +183,7 @@ router.post('/', requireAdmin, async (req, res) => {
   res.status(201).location(`/api/events/${event.id}`).json(await loadEvent(event.id));
 });
 
-// -----------------------------------------------------------------------------
-// PATCH /api/events/:id (admin) — modification des données de référence
-// Annuler un événement rembourse automatiquement ses commandes (le déclencheur
-// orders_cancel libère alors les places et annule les billets).
-// -----------------------------------------------------------------------------
+
 const patchSchema = z.object({
   title: z.string().trim().min(1).max(200),
   starts_at: z.coerce.date(),
@@ -240,9 +223,7 @@ router.patch('/:id', requireAdmin, async (req, res) => {
   res.json({ ...(await loadEvent(id)), refunded_orders: refunded });
 });
 
-// -----------------------------------------------------------------------------
-// PUT /api/events/:id/page (admin) — contenu éditorial MongoDB
-// -----------------------------------------------------------------------------
+
 const PROTECTED_FIELDS = ['_id', 'event_id', 'title', 'category', 'rating'];
 
 router.put('/:id/page', requireAdmin, async (req, res) => {
@@ -260,10 +241,6 @@ router.put('/:id/page', requireAdmin, async (req, res) => {
   res.json(page);
 });
 
-// -----------------------------------------------------------------------------
-// DELETE /api/events/:id (admin) — uniquement si aucun billet n'a été vendu
-// (la clé étrangère order_items -> ticket_types en RESTRICT renvoie 409 sinon)
-// -----------------------------------------------------------------------------
 router.delete('/:id', requireAdmin, async (req, res) => {
   const id = parseId(req.params.id);
   const { rowCount } = await query('DELETE FROM events WHERE id = $1', [id]);

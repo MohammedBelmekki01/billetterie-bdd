@@ -1,5 +1,4 @@
-// Configuration lue dans les variables d'environnement (voir .env.example).
-// Les valeurs par défaut correspondent à la pile docker compose de développement.
+
 const env = process.env;
 
 export const config = {
@@ -10,7 +9,6 @@ export const config = {
     host: env.PGHOST || 'localhost',
     port: Number(env.PGPORT || 5432),
     database: env.POSTGRES_DB || 'billetterie',
-    // rôle applicatif aux droits limités, jamais le superutilisateur
     user: env.APP_DB_USER || 'billetterie_app',
     password: env.APP_DB_PASSWORD || 'app_dev_only',
   },
@@ -24,7 +22,7 @@ export const config = {
   },
   // Durées de vie Redis (secondes)
   ttl: {
-    eventCache: 60,      // fiche événement mise en cache
-    cart: 15 * 60,       // panier abandonné au bout de 15 min
+    eventCache: 60,      
+    cart: 15 * 60,      
   },
 };

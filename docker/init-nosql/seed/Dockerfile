@@ -1,4 +1,3 @@
-# Image du service "seed" : s'exécute une fois puis s'arrête
 FROM node:26-alpine
 
 WORKDIR /seed

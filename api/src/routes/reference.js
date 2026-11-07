@@ -3,8 +3,6 @@ import { query } from '../db/postgres.js';
 
 // Données de référence pour les filtres et formulaires du frontend
 const router = Router();
-
-// GET /api/categories — avec le nombre d'événements à venir (LEFT JOIN : 0 inclus)
 router.get('/categories', async (req, res) => {
   const { rows } = await query(`
     SELECT c.id, c.name, c.slug, count(e.id) AS upcoming_events
@@ -15,7 +13,7 @@ router.get('/categories', async (req, res) => {
   res.json(rows);
 });
 
-// GET /api/venues?city=Lyon
+
 router.get('/venues', async (req, res) => {
   const { rows } = await query(
     `SELECT id, name, city, capacity FROM venues
@@ -26,7 +24,7 @@ router.get('/venues', async (req, res) => {
   res.json(rows);
 });
 
-// GET /api/cities
+//api cities 
 router.get('/cities', async (req, res) => {
   const { rows } = await query('SELECT DISTINCT city FROM venues ORDER BY city');
   res.json(rows.map((r) => r.city));

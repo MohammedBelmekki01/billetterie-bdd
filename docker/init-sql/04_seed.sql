@@ -1,21 +1,10 @@
--- =============================================================================
--- 04_seed.sql — Peuplement de la base relationnelle (données de démonstration)
---
--- Les données sont générées en SQL (generate_series + random()) : pas de gros
--- fichier CSV à versionner, et setseed() rend le jeu reproductible.
--- Volumes : ~3 000 utilisateurs, 60 salles, 600 événements, 1 800 types de
--- billets, 20 000 commandes, ~25 000 lignes de commande, ~45 000 billets.
--- =============================================================================
-
 BEGIN;
 
-CREATE EXTENSION IF NOT EXISTS pgcrypto;   -- crypt() pour les mots de passe bcrypt
+CREATE EXTENSION IF NOT EXISTS pgcrypto;  
 
 SELECT setseed(0.42);
 
--- -----------------------------------------------------------------------------
--- Catégories
--- -----------------------------------------------------------------------------
+
 INSERT INTO categories (name, slug) VALUES
     ('Concert',     'concert'),
     ('Théâtre',     'theatre'),
@@ -26,9 +15,7 @@ INSERT INTO categories (name, slug) VALUES
     ('Danse',       'danse'),
     ('Exposition',  'exposition');
 
--- -----------------------------------------------------------------------------
--- Salles : 12 villes x 5 types de salle = 60 salles
--- -----------------------------------------------------------------------------
+
 INSERT INTO venues (name, city, address, capacity)
 SELECT vt.label || ' de ' || c.city,
        c.city,
@@ -45,11 +32,6 @@ SELECT vt.label || ' de ' || c.city,
        ('Club Le Sous-Sol',   'rue de la Nuit',       150,   600)
  ) AS vt(label, street, cap_min, cap_max);
 
--- -----------------------------------------------------------------------------
--- Utilisateurs : 2 comptes de démonstration + 3 000 clients
--- Tous les comptes ont le mot de passe "demo1234" (haché en bcrypt, une seule
--- fois pour ne pas ralentir le peuplement).
--- -----------------------------------------------------------------------------
 CREATE TEMP TABLE seed_pwd AS SELECT crypt('demo1234', gen_salt('bf', 8)) AS hash;
 
 INSERT INTO users (email, first_name, last_name, password_hash, role, created_at)
@@ -82,9 +64,6 @@ SELECT translate(lower(first_name || '.' || last_name), 'éèêëàâîïôöû�
        now() - random() * interval '3 years'
   FROM gen;
 
--- -----------------------------------------------------------------------------
--- Événements : 600, répartis de -12 mois à +6 mois autour d'aujourd'hui
--- -----------------------------------------------------------------------------
 WITH words AS (
     SELECT ARRAY['Nova Lune','Les Ombres Bleues','Kaïa','Orchestre Lumière','Sauvage Club',
                  'Mira & les Vents','Électre','Bastien Roy','Les Pavés','Aurore Boréale',
@@ -128,9 +107,6 @@ SELECT CASE gen.category_id
        gen.starts_at - interval '120 days'
   FROM gen, words;
 
--- -----------------------------------------------------------------------------
--- Types de billets : 3 par événement, quotas proportionnels à la capacité
--- -----------------------------------------------------------------------------
 INSERT INTO ticket_types (event_id, name, price, quantity_total)
 SELECT e.id,
        t.name,
@@ -142,11 +118,6 @@ SELECT e.id,
  CROSS JOIN (VALUES ('Standard', 1.0, 0.6), ('Catégorie 1', 1.6, 0.3), ('VIP', 3.0, 0.1))
        AS t(name, price_factor, share);
 
--- -----------------------------------------------------------------------------
--- Commandes : 20 000
--- Les déclencheurs de stock sont désactivés pendant le chargement en masse ;
--- quantity_sold est recalculé en une fois à la fin (plus rapide et cohérent).
--- -----------------------------------------------------------------------------
 ALTER TABLE order_items DISABLE TRIGGER order_items_stock;
 ALTER TABLE orders      DISABLE TRIGGER orders_cancel;
 
@@ -170,7 +141,6 @@ picked AS (
 )
 SELECT p.*,
        e.status AS event_status,
-       -- commande passée dans les 90 jours précédant l'événement, jamais dans le futur
        CASE WHEN e.starts_at - p.r_date * interval '90 days' > now()
             THEN now() - p.r_date * interval '30 days'
             ELSE e.starts_at - p.r_date * interval '90 days'
@@ -199,7 +169,6 @@ SELECT id,
 
 SELECT setval(pg_get_serial_sequence('orders', 'id'), (SELECT max(id) FROM orders));
 
--- Lignes de commande : 1 ou 2 types de billets par commande
 INSERT INTO order_items (order_id, ticket_type_id, quantity, unit_price)
 SELECT so.id, tt.id, x.qty, tt.price
   FROM seed_orders so
@@ -210,15 +179,12 @@ SELECT so.id, tt.id, x.qty, tt.price
    AND tt.name = (ARRAY['Standard', 'Catégorie 1', 'VIP'])[x.k]
  WHERE x.keep;
 
--- Montant total de chaque commande
 UPDATE orders o
    SET total_amount = s.total
   FROM (SELECT order_id, sum(quantity * unit_price) AS total
           FROM order_items GROUP BY order_id) s
  WHERE s.order_id = o.id;
 
--- Stock vendu = commandes payées ou en attente (les annulées libèrent leurs places).
--- Si un événement très demandé dépasse son quota, le quota est relevé.
 UPDATE ticket_types tt
    SET quantity_total = greatest(tt.quantity_total, s.sold),
        quantity_sold  = s.sold
@@ -229,16 +195,13 @@ UPDATE ticket_types tt
          GROUP BY oi.ticket_type_id) s
  WHERE s.ticket_type_id = tt.id;
 
--- Quelques catégories VIP complètes sur les événements à venir les plus demandés
+
 UPDATE ticket_types
    SET quantity_total = quantity_sold
  WHERE name = 'VIP'
    AND quantity_sold > 0
    AND event_id IN (SELECT event_id FROM v_upcoming_events ORDER BY seats_left LIMIT 15);
 
--- -----------------------------------------------------------------------------
--- Billets : un par place, pour les commandes payées / annulées / remboursées
--- -----------------------------------------------------------------------------
 INSERT INTO tickets (order_item_id, holder_name, status, scanned_at)
 SELECT oi.id,
        u.first_name || ' ' || u.last_name,
@@ -263,5 +226,4 @@ ALTER TABLE orders      ENABLE TRIGGER orders_cancel;
 
 COMMIT;
 
--- Statistiques à jour pour que le planificateur choisisse de bons plans
 ANALYZE;

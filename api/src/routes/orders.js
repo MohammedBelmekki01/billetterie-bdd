@@ -9,7 +9,6 @@ import { requireAuth } from '../lib/auth.js';
 const router = Router();
 router.use(requireAuth);
 
-// Détail d'une commande : lignes, événement et billets imbriqués (json_agg)
 async function loadOrder(orderId) {
   const { rows: [order] } = await query(
     `SELECT o.id, o.user_id, o.status, o.total_amount, o.created_at, o.paid_at,
@@ -34,8 +33,6 @@ async function loadOrder(orderId) {
   return order;
 }
 
-// Met à jour Redis après un achat (+) ou une annulation (-) :
-// classement des ventes et invalidation du cache des fiches concernées
 async function syncRedis(items, sign) {
   const tx = redis.multi();
   for (const { event_id: eventId, quantity } of items) {
@@ -44,14 +41,6 @@ async function syncRedis(items, sign) {
   }
   await tx.exec();
 }
-
-// -----------------------------------------------------------------------------
-// POST /api/orders — paiement (Redis -> PostgreSQL -> Redis)
-// Sans corps : on commande le contenu du panier Redis.
-// Avec { items: [...] } : commande directe.
-// Toute la logique critique (stock, verrou, billets) est dans la fonction SQL
-// place_order : soit tout est enregistré, soit rien.
-// -----------------------------------------------------------------------------
 const orderSchema = z.object({
   items: z.array(z.object({
     ticket_type_id: z.number().int().positive(),
@@ -80,8 +69,7 @@ router.post('/', async (req, res) => {
   res.status(201).location(`/api/orders/${orderId}`).json(order);
 });
 
-// GET /api/orders — mes commandes, les plus récentes d'abord
-// (sert l'index composite orders(user_id, created_at DESC))
+
 router.get('/', async (req, res) => {
   const { page, limit } = pagination.parse(req.query);
   const { rows } = await query(

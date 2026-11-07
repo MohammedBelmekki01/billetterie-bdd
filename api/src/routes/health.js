@@ -4,8 +4,6 @@ import { mongo } from '../db/mongo.js';
 import { redis } from '../db/redis.js';
 
 const router = Router();
-
-// GET /api/health — vérifie la connexion effective aux trois bases
 router.get('/', async (req, res) => {
   const check = async (fn) => {
     const start = performance.now();

@@ -1,11 +1,4 @@
-#!/bin/sh
-# =============================================================================
-# 06_app_role.sh — Rôle applicatif aux droits limités
-#
-# Script shell (et non .sql) pour lire le mot de passe dans les variables
-# d'environnement du conteneur au lieu de l'écrire en dur dans le dépôt.
-# L'API se connecte avec ce rôle, jamais avec le superutilisateur "postgres".
-# =============================================================================
+
 set -e
 
 psql -v ON_ERROR_STOP=1 \

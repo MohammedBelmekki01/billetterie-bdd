@@ -12,7 +12,7 @@ import reviewRoutes from './routes/reviews.js';
 import statsRoutes from './routes/stats.js';
 import { errorHandler, notFoundHandler } from './lib/errors.js';
 
-// Messages de validation en français
+// Messages de validation :
 z.config(z.locales.fr());
 
 export const app = express();

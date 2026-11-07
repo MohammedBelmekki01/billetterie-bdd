@@ -16,7 +16,6 @@ const registerSchema = z.object({
   last_name: z.string().trim().min(1).max(60),
 });
 
-// POST /api/auth/register — création de compte (PostgreSQL)
 router.post('/register', async (req, res) => {
   const data = registerSchema.parse(req.body);
   const hash = await bcrypt.hash(data.password, 10);
@@ -31,7 +30,7 @@ router.post('/register', async (req, res) => {
 
 const loginSchema = z.object({ email: z.string().trim().toLowerCase(), password: z.string() });
 
-// POST /api/auth/login — renvoie un jeton JWT
+
 router.post('/login', async (req, res) => {
   const { email, password } = loginSchema.parse(req.body);
   const { rows: [row] } = await query(
@@ -45,7 +44,7 @@ router.post('/login', async (req, res) => {
   res.json({ user, token: signToken(user) });
 });
 
-// GET /api/auth/me — profil + petit résumé d'activité
+
 router.get('/me', requireAuth, async (req, res) => {
   const { rows: [user] } = await query(
     `SELECT ${USER_COLUMNS},

@@ -61,7 +61,7 @@ router.put('/items', async (req, res) => {
   if (tt.status !== 'published' || new Date(tt.starts_at) <= new Date()) {
     throw new HttpError(409, 'Cet événement n\'est pas en vente');
   }
-  // vérification indicative : le stock est revérifié (et verrouillé) au paiement
+ 
   if (tt.remaining < quantity) throw new HttpError(409, `Plus que ${tt.remaining} place(s) disponible(s)`);
 
   const key = keys.cart(req.user.id);
@@ -72,14 +72,13 @@ router.put('/items', async (req, res) => {
   res.json(await readCart(req.user.id));
 });
 
-// DELETE /api/cart/items/:ticketTypeId
+
 router.delete('/items/:ticketTypeId', async (req, res) => {
   const ttId = parseId(req.params.ticketTypeId, 'Type de billet');
   await redis.hDel(keys.cart(req.user.id), String(ttId));
   res.json(await readCart(req.user.id));
 });
 
-// DELETE /api/cart — vide le panier
 router.delete('/', async (req, res) => {
   await redis.del(keys.cart(req.user.id));
   res.status(204).end();
